@@ -2,6 +2,7 @@ const express = require('express');
 const User = require('../models/user');
 const Problem = require('../models/problem');
 const authMiddleware = require('../middleware/auth');
+const nodemailer = require('nodemailer');
 
 const router = express.Router();
 
@@ -22,32 +23,47 @@ router.post('/report', authMiddleware, async (req, res) => {
       latitude: parsedLatitude,
       longitude: parsedLongitude,
       status: 'pending',
-      reportedBy: req.user.userId
+      reportedBy: req.user.userId,
     });
-
-    // Save the problem to the database
     const savedProblem = await newProblem.save();
+    
+    //await savedProblem.populate('reportedBy', 'email username').execPopulate();
+    await savedProblem.populate('reportedBy', 'email username');
+    // Access the user's email and username
+    const userEmail = savedProblem.reportedBy.email;
+    const userName = savedProblem.reportedBy.username;
 
     res.status(201).json(savedProblem);
+    
+    // Send email using the retrieved email and username
+    sendProblemReportEmail(userEmail, `Dear ${userName}, Thank you for reporting a problem. Our assigned staff will help you.`);
+
+    console.log(req.user.userEmail);
+
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: 'An error occurred while creating the problem report.' });
   }
 });
-
-// Get all problems endpoint
+//getting all problems
 router.get('/problems', authMiddleware, async (req, res) => {
-    try {
-      // Retrieve all problems from the database
-      const problems = await Problem.find();
-  
-      res.status(200).json(problems);
-    } catch (error) {
-      console.log(error);
-      res.status(500).json({ error: 'An error occurred while retrieving the problems.' });
-    }
-  });
-  
+  try {
+    // Retrieve all problems from the database
+    const problems = await Problem.find().populate('reportedBy', 'username');
+
+    // Convert reportedAt to Date objects
+    const convertedProblems = problems.map((problem) => ({
+      ...problem.toObject(),
+      reportedAt: problem.reportedAt instanceof Date ? problem.reportedAt : new Date(problem.reportedAt)
+    }));
+
+    res.status(200).json(convertedProblems);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while retrieving the problems.' });
+  }
+});
+ 
 //Delete problem  endpoint 
 router.delete('/problems/:problemId', authMiddleware, async (req, res) => {
     try {
@@ -112,6 +128,73 @@ router.put('/:problemId', authMiddleware, async (req, res) => {
 router.get('/kinds', (req, res) => {
   const kinds = ['Water Leakage', 'Pothole', 'Electricity Outage', 'Garbage Disposal'];
   res.status(200).json(kinds);
+});
+
+//This is an email which will be used to send information to the email
+// Function to send registration confirmation email
+async function sendProblemReportEmail(email, textContent) {
+  try {
+    let transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'kinegaofficial@gmail.com',
+        pass: 'buzpitfowyqigedj',
+      },
+    });
+
+    let mailOptions = {
+      from: 'kinegaofficial@gmail.com',
+      to: email,
+      subject: 'DAWASA Problem Report',
+      text: textContent,
+    };
+
+    let info = await transporter.sendMail(mailOptions);
+
+    console.log('Email sent: ' + info.response);
+  } catch (error) {
+    console.error('Error sending email:', error);
+  }
+}
+
+//adding staffs
+const Staff = require('../models/staff');
+
+// Create a new staff
+router.post('/staff', async (req, res) => {
+  try {
+    const { name, position, department, salary } = req.body;
+
+    // Create a new staff object
+    const newStaff = new Staff({
+      name,
+      position,
+      department,
+      salary
+    });
+
+    const savedStaff = await newStaff.save();
+
+    res.status(201).json(savedStaff);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while creating the staff.' });
+  }
+});
+
+// Get all staff
+router.get('/staff', async (req, res) => {
+  try {
+    // Retrieve all staff from the database
+    const staffList = await Staff.find();
+
+    res.status(200).json(staffList);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while retrieving the staff list.' });
+  }
 });
 
   

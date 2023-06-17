@@ -67,7 +67,7 @@ async function sendRegistrationConfirmationEmail(email) {
 // Function to generate JWT token
 function generateToken(userId) {
   const secretKey = jwtSecret; // Replace with your own secret key
-  const expiresIn = '1h'; // Token expiration time
+  const expiresIn = '5h'; // Token expiration time
 
   return jwt.sign({ userId }, secretKey, { expiresIn });
 }

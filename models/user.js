@@ -25,6 +25,9 @@ const userSchema = new Schema({
   district: {
     type: String
   },
+  role: {
+    type: String,
+  }
   
 });
 
