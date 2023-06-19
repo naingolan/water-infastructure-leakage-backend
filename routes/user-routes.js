@@ -3,38 +3,46 @@ const bcrypt = require('bcrypt');
 const User = require('../models/user');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
-const jwtSecret = require('../config').jwtSecret;
+const config = require('../config')
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
-// User registration endpoint
 router.post('/register', async (req, res) => {
-  const { username, password, email, phoneNumber, district, street } = req.body;
+  const { name, password, email, phoneNumber, role, department, position } = req.body;
 
   try {
     const salt = await bcrypt.genSalt(10);
+    // Check if the name or email already exists in the database
+    const existingUser = await User.findOne({ $or: [ { email }] });
+    if (existingUser) {
+      return res.status(400).json({ error: 'email already exists' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = new User({
-      username,
+      name,
       password: hashedPassword,
       email,
       phoneNumber,
-      street,
-      district
+      role,
+      department: role === 'staff' ? department : undefined,
+      position: role === 'staff' ? position : undefined,
     });
 
     await newUser.save();
 
-    const token = generateToken(newUser._id); // Generate JWT token
+    const token = jwt.sign({ userId: newUser._id, role: newUser.role }, config.jwtSecret);
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id, token });
     sendRegistrationConfirmationEmail(req.body.email);
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: 'Failed to register this new user' });
   }
 });
+
 // Function to send registration confirmation email
 async function sendRegistrationConfirmationEmail(email) {
   try {
@@ -74,9 +82,9 @@ function generateToken(userId) {
 
 // User login endpoint
 router.post('/login', (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
-  User.findOne({ username })
+  User.findOne({ email })
     .then((user) => {
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
@@ -120,7 +128,7 @@ router.get('/:userId', async (req, res) => {
 //updating user info
 router.patch('/update', authMiddleware, async (req, res) => {
   try {
-    const { username, email, phoneNumber, district, street } = req.body;
+    const { name, email, phoneNumber, district, street } = req.body;
 
     // Find the user by ID
     const user = await User.findById(req.user.userId);
@@ -130,7 +138,7 @@ router.patch('/update', authMiddleware, async (req, res) => {
     }
 
     // Update the user information
-    user.username = username;
+    user.name = name;
     user.email = email;
     user.phoneNumber = phoneNumber;
     user.district = district;

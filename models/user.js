@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
-  username: {
+  name:{
     type: String,
     required: true
   },
@@ -18,17 +18,24 @@ const userSchema = new Schema({
     type: String,
     required: true
   },
-  
-  street: {
-    type: String
-  },
-  district: {
-    type: String
-  },
   role: {
     type: String,
+    enum: ['user', 'staff', 'admin'],
+    default: 'user',
+    required: true
+  },
+  department: {
+    type: String,
+    required: function () {
+      return this.role === 'staff';
+    }
+  },
+  position: {
+    type: String,
+    required: function () {
+      return this.role === 'staff';
+    }
   }
-  
 });
 
 const User = mongoose.model('User', userSchema);

@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 const router = express.Router();
 
 // Report endpoint
-router.post('/report', authMiddleware, async (req, res) => {
+router.post('/report', authMiddleware("user"), async (req, res) => {
   try {
     const { kind, description, imageSrc, latitude, longitude } = req.body;
 
@@ -26,12 +26,12 @@ router.post('/report', authMiddleware, async (req, res) => {
       reportedBy: req.user.userId,
     });
     const savedProblem = await newProblem.save();
-    
+    console.log(newProblem);
     //await savedProblem.populate('reportedBy', 'email username').execPopulate();
-    await savedProblem.populate('reportedBy', 'email username');
+    await savedProblem.populate('reportedBy', 'email name');
     // Access the user's email and username
     const userEmail = savedProblem.reportedBy.email;
-    const userName = savedProblem.reportedBy.username;
+    const userName = savedProblem.reportedBy.name;
 
     res.status(201).json(savedProblem);
     
@@ -46,10 +46,10 @@ router.post('/report', authMiddleware, async (req, res) => {
   }
 });
 //getting all problems
-router.get('/problems', authMiddleware, async (req, res) => {
+router.get('/problems',  async (req, res) => {
   try {
     // Retrieve all problems from the database
-    const problems = await Problem.find().populate('reportedBy', 'username');
+    const problems = await Problem.find().populate('reportedBy', 'name');
 
     // Convert reportedAt to Date objects
     const convertedProblems = problems.map((problem) => ({
@@ -63,9 +63,34 @@ router.get('/problems', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'An error occurred while retrieving the problems.' });
   }
 });
+// Getting a single problem
+router.get('/problems/:id', async (req, res) => {
+  try {
+    const problemId = req.params.id;
+
+    // Retrieve the problem from the database based on the ID
+    const problem = await Problem.findById(problemId).populate('reportedBy', 'username');
+
+    if (!problem) {
+      return res.status(404).json({ error: 'Problem not found.' });
+    }
+
+    // Convert reportedAt to a Date object if needed
+    const convertedProblem = {
+      ...problem.toObject(),
+      reportedAt: problem.reportedAt instanceof Date ? problem.reportedAt : new Date(problem.reportedAt)
+    };
+
+    res.status(200).json(convertedProblem);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while retrieving the problem.' });
+  }
+});
+
  
 //Delete problem  endpoint 
-router.delete('/problems/:problemId', authMiddleware, async (req, res) => {
+router.delete('/problems/:problemId', authMiddleware("user"), async (req, res) => {
     try {
       const problemId = req.params.problemId;
       console.log(req.params.problemId);
@@ -94,7 +119,7 @@ router.delete('/problems/:problemId', authMiddleware, async (req, res) => {
   });
 
 // Update problem details endpoint
-router.put('/:problemId', authMiddleware, async (req, res) => {
+router.put('/:problemId', authMiddleware("user"), async (req, res) => {
     const { problemId } = req.params;
     const { description } = req.body;
   
@@ -130,9 +155,58 @@ router.get('/kinds', (req, res) => {
   res.status(200).json(kinds);
 });
 
+//Assigning staff a problem
+// Assign staff to problem endpoint
+router.put('/:id/assign', async (req, res) => {
+  const { id } = req.params;
+  const { staffId } = req.body;
+
+  try {
+    const problem = await Problem.findById(id);
+
+    if (!problem) {
+      return res.status(404).json({ error: 'Problem not found' });
+    }
+
+    const staff = await User.findById(staffId);
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff member not found' });
+    }
+
+    if (staff.role !== 'staff') {
+      return res.status(400).json({ error: 'Selected user is not a staff member' });
+    }
+
+    if (problem.status !== 'pending') {
+      return res.status(400).json({ error: 'Problem is not in a pending state' });
+    }
+
+    problem.assignedTo = staffId;
+    problem.assignedAt = new Date();
+    problem.status = 'on process';
+
+    await problem.save();
+
+    await problem.populate('reportedBy', 'email name');
+    // Access the user's email and username
+    const userEmail = problem.reportedBy.email;
+    const userName = problem.reportedBy.name;
+    console.log(userEmail, userName);
+
+    res.status(200).json({ message: 'Staff assigned successfully', problem });
+    sendProblemReportEmail(userEmail, `Dear ${userName}, Thank you for reporting a problem. Our assigned staff will help you.`);
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'Failed to assign staff to the problem' });
+  }
+});
+
+
 //This is an email which will be used to send information to the email
 // Function to send registration confirmation email
-async function sendProblemReportEmail(email, textContent) {
+async function sendProblemReportEmail(email, subject, textContent) {
   try {
     let transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
@@ -147,7 +221,7 @@ async function sendProblemReportEmail(email, textContent) {
     let mailOptions = {
       from: 'kinegaofficial@gmail.com',
       to: email,
-      subject: 'DAWASA Problem Report',
+      subject: subject,
       text: textContent,
     };
 
@@ -159,43 +233,6 @@ async function sendProblemReportEmail(email, textContent) {
   }
 }
 
-//adding staffs
-const Staff = require('../models/staff');
-
-// Create a new staff
-router.post('/staff', async (req, res) => {
-  try {
-    const { name, position, department, salary } = req.body;
-
-    // Create a new staff object
-    const newStaff = new Staff({
-      name,
-      position,
-      department,
-      salary
-    });
-
-    const savedStaff = await newStaff.save();
-
-    res.status(201).json(savedStaff);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: 'An error occurred while creating the staff.' });
-  }
-});
-
-// Get all staff
-router.get('/staff', async (req, res) => {
-  try {
-    // Retrieve all staff from the database
-    const staffList = await Staff.find();
-
-    res.status(200).json(staffList);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: 'An error occurred while retrieving the staff list.' });
-  }
-});
 
   
 
