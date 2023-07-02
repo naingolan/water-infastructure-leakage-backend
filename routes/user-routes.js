@@ -81,37 +81,36 @@ function generateToken(userId) {
 }
 
 // User login endpoint
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
-  User.findOne({ email })
-    .then((user) => {
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
+  try {
+    const user = await User.findOne({ email });
 
-      bcrypt.compare(password, user.password)
-        .then((isMatch) => {
-          if (isMatch) {
-            const token = generateToken(user._id); // Generate JWT token
-            res.status(200).json({ message: 'User authenticated successfully', token });
-          } else {
-            res.status(401).json({ error: 'Invalid password' });
-          }
-        })
-        .catch((error) => {
-          res.status(500).json({ error: 'Failed to compare passwords' });
-        });
-    })
-    .catch((error) => {
-      res.status(500).json({ error: 'Failed to find user' });
-    });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (isMatch) {
+      const userId = user._id;
+      const token = jwt.sign({ userId: user._id, role: user.role }, config.jwtSecret);
+      return res.status(200).json({ message: 'User authenticated successfully', userId, token });
+    }
+
+    return res.status(401).json({ error: 'Invalid password' });
+  } catch (error) {
+    console.error('Failed to compare passwords', error);
+    return res.status(500).json({ error: 'Failed to compare passwords' });
+  }
 });
+
 
 
 router.get('/:userId', async (req, res) => {
   const { userId } = req.params;
-
+  console.log(userId);
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -120,7 +119,9 @@ router.get('/:userId', async (req, res) => {
 
     res.status(200).json({ user });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch user data' });
+    console.log(error);
+    res.status(500).json({ 
+      error: 'Failed to fetch user data' });
   }
 });
 

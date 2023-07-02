@@ -45,11 +45,13 @@ router.post('/report', authMiddleware("user"), async (req, res) => {
     res.status(500).json({ error: 'An error occurred while creating the problem report.' });
   }
 });
-//getting all problems
-router.get('/problems',  async (req, res) => {
+// Getting all problems
+router.get('/problems', async (req, res) => {
   try {
     // Retrieve all problems from the database
-    const problems = await Problem.find().populate('reportedBy', 'name');
+    const problems = await Problem.find()
+      .populate('reportedBy', 'name')
+      .populate('assignedTo', 'name');
 
     // Convert reportedAt to Date objects
     const convertedProblems = problems.map((problem) => ({
@@ -63,6 +65,7 @@ router.get('/problems',  async (req, res) => {
     res.status(500).json({ error: 'An error occurred while retrieving the problems.' });
   }
 });
+
 // Getting a single problem
 router.get('/problems/:id', async (req, res) => {
   try {
@@ -151,15 +154,26 @@ router.put('/:problemId', authMiddleware("user"), async (req, res) => {
   //receiving the problem kind
   // Get all problem kinds endpoint
 router.get('/kinds', (req, res) => {
-  const kinds = ['Water Leakage', 'Pothole', 'Electricity Outage', 'Garbage Disposal'];
+  const kinds = ['Small Water Pipe Leak', 'Water Tank Burst', 'Small Pipe Fixture', 'Large Water Leak'];
   res.status(200).json(kinds);
 });
 
 //Assigning staff a problem
+//fetch those staffs
+router.get('/staff', async (req, res) => {
+  try {
+    const staffList = await User.find({ role: 'staff' }).select('name department position');
+    res.json(staffList);
+  } catch (error) {
+    console.error('Error fetching staff list:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Assign staff to problem endpoint
 router.put('/:id/assign', async (req, res) => {
   const { id } = req.params;
-  const { staffId } = req.body;
+  const { staffId, staffName } = req.body;
 
   try {
     const problem = await Problem.findById(id);
@@ -187,15 +201,14 @@ router.put('/:id/assign', async (req, res) => {
     problem.status = 'on process';
 
     await problem.save();
+    console.log("It has been saved");
 
-    await problem.populate('reportedBy', 'email name');
-    // Access the user's email and username
-    const userEmail = problem.reportedBy.email;
-    const userName = problem.reportedBy.name;
-    console.log(userEmail, userName);
+    const reporter = await User.findById(problem.reportedBy);
+    const reporterEmail = reporter.email;
+    const reporterName = reporter.name;
+    sendProblemReportEmail(reporterEmail,"DAWASA Problem Assignment", `Dear ${reporterName}, Your problem has been assigned to a staff member.`, problem);
 
     res.status(200).json({ message: 'Staff assigned successfully', problem });
-    sendProblemReportEmail(userEmail, `Dear ${userName}, Thank you for reporting a problem. Our assigned staff will help you.`);
 
   } catch (error) {
     console.log(error);
@@ -204,9 +217,48 @@ router.put('/:id/assign', async (req, res) => {
 });
 
 
+// Finalising problem endpoint for staff
+router.put('/:id/edit', async (req, res) => {
+  const { id } = req.params;
+  const { status, staffFeedback } = req.body;
+
+  try {
+    const problem = await Problem.findById(id);
+
+    if (!problem) {
+      return res.status(404).json({ error: 'Problem not found' });
+    }
+
+    if (status === 'solved') {
+      problem.status = 'solved';
+    const reporter = await User.findById(problem.reportedBy);
+    const reporterEmail = reporter.email;
+    const reporterName = reporter.name;
+    sendProblemReportEmail(reporterEmail,"DAWASA Problem Solved", `Dear ${reporterName}, Your problem has been solved. Visit the area for further feedback`, problem);
+
+    } else if (status === 'not solved') {
+      problem.status = 'ongoing';
+    }
+
+    // Add staff feedback to the problem
+    if (staffFeedback) {
+      problem.staffFeedback.push(staffFeedback);
+      problem.staffFeedbackAt = new Date();
+    }
+
+    await problem.save();
+
+    res.status(200).json({ message: 'Problem updated successfully', problem });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update the problem' });
+    console.log(error);
+  }
+});
+
+
 //This is an email which will be used to send information to the email
 // Function to send registration confirmation email
-async function sendProblemReportEmail(email, subject, textContent) {
+async function sendProblemReportEmail(email, subjectContent, textContent) {
   try {
     let transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
@@ -221,7 +273,7 @@ async function sendProblemReportEmail(email, subject, textContent) {
     let mailOptions = {
       from: 'kinegaofficial@gmail.com',
       to: email,
-      subject: subject,
+      subject: subjectContent,
       text: textContent,
     };
 

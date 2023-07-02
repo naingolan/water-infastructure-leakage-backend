@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const problemSchema = new mongoose.Schema({
   kind: {
     type: String,
-    enum: ['Water Leakage', 'Valve Malfunction', 'Pump Failure', 'Other'],
+    enum: ['Small Water Pipe Leak', 'Water Tank Burst', 'Small Pipe Fixture', 'Large Water Leak'],
     required: true
   },
   description: {
@@ -43,7 +43,12 @@ const problemSchema = new mongoose.Schema({
   assignedAt: {
     type: Date
   },
-  // Other fields as needed
+  staffFeedback: {
+    type: String
+  },
+  staffFeedbackAt: {
+    type: Date
+  },
 });
 
 const Problem = mongoose.model('Problem', problemSchema);
