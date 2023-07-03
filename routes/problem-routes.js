@@ -231,35 +231,67 @@ router.put('/:id/edit', async (req, res) => {
 
     if (status === 'solved') {
       problem.status = 'solved';
-    const reporter = await User.findById(problem.reportedBy);
-    const reporterEmail = reporter.email;
-    const reporterName = reporter.name;
-    sendProblemReportEmail(reporterEmail,"DAWASA Problem Solved", `Dear ${reporterName}, Your problem has been solved. Visit the area for further feedback`, problem);
 
+      // Send problem report email to the reporter
+      const reporter = await User.findById(problem.reportedBy);
+      const reporterEmail = reporter.email;
+      const reporterName = reporter.name;
+      sendProblemReportEmail(reporterEmail, "DAWASA Problem Solved", `Dear ${reporterName}, Your problem has been solved. Visit the area for further feedback`, problem);
     } else if (status === 'not solved') {
       problem.status = 'ongoing';
     }
 
-    // Add staff feedback to the problem
+    // Update staff feedback if provided
     if (staffFeedback) {
-      problem.staffFeedback.push(staffFeedback);
-      problem.staffFeedbackAt = new Date();
+      problem.staffFeedback = staffFeedback;
     }
 
+    // Save the updated problem
     await problem.save();
 
-    res.status(200).json({ message: 'Problem updated successfully', problem });
+    res.status(200).json(problem);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update the problem' });
+    console.error('An error occurred while finalizing the problem:', error);
+    res.status(500).json({ error: 'An error occurred while finalizing the problem' });
+  }
+});
+
+
+const mongoose = require('mongoose');
+    // Get problems assigned to specific staff
+router.get('/assigned/:staffId',async (req, res) => {
+  const { staffId } = req.params;
+
+  try {
+    // Find problems assigned to the staff member
+    const objectId = new mongoose.Types.ObjectId(staffId);
+    const problems = await Problem.find({ assignedTo: objectId});
+
+    if (problems.length === 0) {
+      return res.status(404).json({ message: 'No problems assigned to the staff member' });
+    }
+
+    res.status(200).json(problems);
+  } catch (error) {
     console.log(error);
+    res.status(500).json({ error: 'An error occurred while fetching assigned problems' });
   }
 });
 
 
 //This is an email which will be used to send information to the email
 // Function to send registration confirmation email
-async function sendProblemReportEmail(email, subjectContent, textContent) {
+const handlebars = require('handlebars');
+
+const fs = require('fs');
+
+async function sendProblemReportEmail(email, subjectContent, templateData) {
   try {
+    const htmlTemplatePath = './templates/problem_report_template.html';
+    const htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf-8');
+    const compiledTemplate = handlebars.compile(htmlTemplate);
+    const renderedTemplate = compiledTemplate(templateData);
+
     let transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 465,
@@ -274,7 +306,7 @@ async function sendProblemReportEmail(email, subjectContent, textContent) {
       from: 'kinegaofficial@gmail.com',
       to: email,
       subject: subjectContent,
-      text: textContent,
+      html: renderedTemplate,
     };
 
     let info = await transporter.sendMail(mailOptions);
@@ -284,8 +316,5 @@ async function sendProblemReportEmail(email, subjectContent, textContent) {
     console.error('Error sending email:', error);
   }
 }
-
-
-  
 
 module.exports = router;
