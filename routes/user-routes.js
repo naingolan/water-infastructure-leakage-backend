@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.post('/register', async (req, res) => {
   const { name, password, email, phoneNumber, role, department, position } = req.body;
-
+ console.log(req.body);
   try {
     const salt = await bcrypt.genSalt(10);
     // Check if the name or email already exists in the database

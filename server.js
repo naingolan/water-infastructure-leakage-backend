@@ -10,6 +10,8 @@ const corsOptions ={
 const userRoutes = require('./routes/user-routes');
 const problemRoutes = require('./routes/problem-routes');
 const problemAssign = require('./routes/assign-problem');
+const announcement = require('./routes/anouncement');
+const message = require('./routes/messages');
 
 
 
@@ -20,6 +22,8 @@ app.use(cors(corsOptions))
 app.use(express.json());
 app.use('/api/users', userRoutes); 
 app.use('/api/problems', problemRoutes); 
+app.use('/api/anouncements', announcement);
+app.use('/api/messages', message);
 //app.use('/api/assign', problemAssign); 
 // Start the server
 const port = 3000;

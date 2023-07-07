@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/user');
+const Message = require('../models/message');
 const Problem = require('../models/problem');
 const authMiddleware = require('../middleware/auth');
 const nodemailer = require('nodemailer');
@@ -10,12 +11,10 @@ const router = express.Router();
 router.post('/report', authMiddleware("user"), async (req, res) => {
   try {
     const { kind, description, imageSrc, latitude, longitude } = req.body;
-
     const parsedLatitude = parseFloat(latitude);
     const parsedLongitude = parseFloat(longitude);
 
     // Create a new problem object
-    console.log(req.user);
     const newProblem = new Problem({
       kind,
       description,
@@ -26,20 +25,25 @@ router.post('/report', authMiddleware("user"), async (req, res) => {
       reportedBy: req.user.userId,
     });
     const savedProblem = await newProblem.save();
-    console.log(newProblem);
-    //await savedProblem.populate('reportedBy', 'email username').execPopulate();
-    await savedProblem.populate('reportedBy', 'email name');
-    // Access the user's email and username
-    const userEmail = savedProblem.reportedBy.email;
-    const userName = savedProblem.reportedBy.name;
+
+    // Retrieve the reporter's information
+    const reporter = await User.findById(req.user.userId);
+
+    // Create a new message object
+    const newMessage = new Message({
+      header:"Problem Reporting",
+      content: "Thank you for reporting a problem. Our assigned staff will help you.",
+      sender: null, // Set sender as null to indicate it's a system-generated message
+      receiver: reporter._id, // Set the reporter as the receiver
+      createdAt: new Date(),
+    });
+
+    await newMessage.save();
+
+    // Send email to the reporter
+    sendProblemReportEmail(reporter.email, `Dear ${reporter.name}, Thank you for reporting a problem. Our assigned staff will help you.`);
 
     res.status(201).json(savedProblem);
-    
-    // Send email using the retrieved email and username
-    sendProblemReportEmail(userEmail, `Dear ${userName}, Thank you for reporting a problem. Our assigned staff will help you.`);
-
-    console.log(req.user.userEmail);
-
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: 'An error occurred while creating the problem report.' });
@@ -162,7 +166,8 @@ router.get('/kinds', (req, res) => {
 //fetch those staffs
 router.get('/staff', async (req, res) => {
   try {
-    const staffList = await User.find({ role: 'staff' }).select('name department position');
+    const staffList = await User.find({ role: 'staff' }).select('name email phoneNumber department position');
+    console.log(staffList);
     res.json(staffList);
   } catch (error) {
     console.error('Error fetching staff list:', error);
