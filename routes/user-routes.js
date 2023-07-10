@@ -36,7 +36,11 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign({ userId: newUser._id, role: newUser.role }, config.jwtSecret);
 
     res.status(201).json({ message: 'User registered successfully', userId: newUser._id, token });
+    if(role=="staff"){
+      sendAccountCreationEmail(req.body.email, req.body.name);
+    }else{
     sendRegistrationConfirmationEmail(req.body.email);
+    }
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: 'Failed to register this new user' });
@@ -61,6 +65,50 @@ async function sendRegistrationConfirmationEmail(email) {
       to: email,
       subject: 'Registration Confirmation',
       text: 'Thank you for registering. Your account has been successfully created.',
+    };
+
+    let info = await transporter.sendMail(mailOptions);
+
+    console.log('Email sent: ' + info.response);
+  } catch (error) {
+    console.error('Error sending email:', error);
+  }
+}
+
+//funciton for staff login
+async function sendAccountCreationEmail(email, name) {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'kinegaofficial@gmail.com',
+        pass: 'buzpitfowyqigedj',
+      },
+    });
+
+    const subjectContent = 'Account Created - Action Required';
+    const changePasswordLink = 'http://example.com/change-password'; // Replace with your actual password change link
+    const loginLink = 'http://example.com/login'; // Replace with your actual login link
+
+    const htmlContent = `
+      <h3>Account Creation Notification</h3>
+      <p>Dear ${name},</p>
+      <p>Your account has been successfully created. Please follow the steps below to activate your account:</p>
+      <ol>
+        <li>Click <a href="${changePasswordLink}">here</a> to change your password.</li>
+        <li>Once you have changed your password, you can login using the following link: <a href="${loginLink}">Login</a></li>
+      </ol>
+      <p>If you did not create an account, please contact us immediately.</p>
+      <p>Thank you.</p>
+    `;
+
+    let mailOptions = {
+      from: 'kinegaofficial@gmail.com',
+      to: email,
+      subject: subjectContent,
+      html: htmlContent,
     };
 
     let info = await transporter.sendMail(mailOptions);
