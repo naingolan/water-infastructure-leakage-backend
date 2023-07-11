@@ -23,6 +23,14 @@ const messageSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+  ,
+  reply:{
+    type:string,  
+  },
+  replierId:{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }
 });
 
 const Message = mongoose.model('Message', messageSchema);

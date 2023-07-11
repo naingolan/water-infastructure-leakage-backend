@@ -27,6 +27,9 @@ const problemSchema = new mongoose.Schema({
     enum: ['pending', 'on process', 'solved'],
     default: 'pending'
   },
+  location:{
+    type: String,
+  },
   reportedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
