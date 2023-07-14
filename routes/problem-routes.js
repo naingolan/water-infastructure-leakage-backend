@@ -10,7 +10,7 @@ const router = express.Router();
 // Report endpoint
 router.post('/report', authMiddleware("user"), async (req, res) => {
   try {
-    const { kind, description, imageSrc, latitude, longitude } = req.body;
+    const { kind, description, imageSrc, latitude, longitude, location} = req.body;
     const parsedLatitude = parseFloat(latitude);
     const parsedLongitude = parseFloat(longitude);
 
@@ -23,6 +23,7 @@ router.post('/report', authMiddleware("user"), async (req, res) => {
       longitude: parsedLongitude,
       status: 'pending',
       reportedBy: req.user.userId,
+      location
     });
     const savedProblem = await newProblem.save();
 
@@ -70,9 +71,35 @@ router.get('/problems', async (req, res) => {
   }
 });
 
-// Getting a single problem
-router.get('/problems/:id', async (req, res) => {
+// Getting problems reported by a specific user
+router.get('/problems/:userId', async (req, res) => {
   try {
+    const userId = req.params.userId; // Retrieve the user ID from the route parameter
+
+    // Retrieve problems reported by the specified user
+    const problems = await Problem.find({ reportedBy: userId })
+      .populate('reportedBy', 'name')
+      .populate('assignedTo', 'name');
+
+    // Convert reportedAt to Date objects
+    const convertedProblems = problems.map((problem) => ({
+      ...problem.toObject(),
+      reportedAt: problem.reportedAt instanceof Date ? problem.reportedAt : new Date(problem.reportedAt)
+    }));
+
+    res.status(200).json(convertedProblems);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while retrieving the problems.' });
+  }
+});
+
+
+// Getting a single problem
+router.get('/singleproblem/:id', async (req, res) => {
+  console.log("I am reached ");
+  try {
+
     const problemId = req.params.id;
 
     // Retrieve the problem from the database based on the ID
@@ -87,7 +114,7 @@ router.get('/problems/:id', async (req, res) => {
       ...problem.toObject(),
       reportedAt: problem.reportedAt instanceof Date ? problem.reportedAt : new Date(problem.reportedAt)
     };
-
+    console.log(convertedProblem);
     res.status(200).json(convertedProblem);
   } catch (error) {
     console.log(error);
@@ -97,7 +124,7 @@ router.get('/problems/:id', async (req, res) => {
 
  
 //Delete problem  endpoint 
-router.delete('/problems/:problemId', authMiddleware("user"), async (req, res) => {
+router.delete('/:problemId', authMiddleware("user"), async (req, res) => {
     try {
       const problemId = req.params.problemId;
       console.log(req.params.problemId);
@@ -105,6 +132,7 @@ router.delete('/problems/:problemId', authMiddleware("user"), async (req, res) =
       // Find the problem by ID
       const problem = await Problem.findById(problemId);
   
+
       // Check if the problem exists
       if (!problem) {
         return res.status(404).json({ error: 'Problem not found' });

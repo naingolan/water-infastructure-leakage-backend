@@ -26,15 +26,15 @@ const userSchema = new Schema({
   },
   department: {
     type: String,
-    required: function () {
-      return this.role === 'staff';
-    }
+    // required: function () {
+    //   return this.role === 'staff';
+    // }
   },
   position: {
     type: String,
-    required: function () {
-      return this.role === 'staff';
-    }
+    // required: function () {
+    //   return this.role === 'staff';
+    // }
   }
 });
 
