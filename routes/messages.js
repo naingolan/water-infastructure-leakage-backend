@@ -33,12 +33,13 @@ router.post('/', async (req, res) => {
 });
 
 // Update a reply
-router.put('/replies/:messageId/:replyId', async (req, res) => {
-  const { content } = req.body;
-
+router.put('/replies/:messageId', async (req, res) => {
+  //const { content } = req.body;
+  console.log(req.body);
   try {
-    const reply = await Reply.findById(req.params.replyId);
-    reply.content = content;
+    const reply = await Message.findById(req.params.messageId);
+    reply.reply.content = req.params.message;
+    reply.reply.replier = req.params.userId;
     await reply.save();
     res.status(200).json(reply);
   } catch (error) {
@@ -46,15 +47,7 @@ router.put('/replies/:messageId/:replyId', async (req, res) => {
     res.status(500).json({ error: 'An error occurred while updating the reply' });
   }
 });
-
 module.exports = router;
-
-
-module.exports = router;
-
-
-module.exports = router;
-
 
 // Get messages by receiver ID
 router.get('/:receiverId', async (req, res) => {

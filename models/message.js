@@ -12,7 +12,6 @@ const messageSchema = new mongoose.Schema({
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    //required: true
   },
   receiver: {
     type: mongoose.Schema.Types.ObjectId,
@@ -22,6 +21,19 @@ const messageSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  reply: {
+    type: mongoose.Schema.Types.ObjectId,
+     content: {
+      type: String
+      },
+      replier: {
+        ref: 'User',
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
   }
 });
 
