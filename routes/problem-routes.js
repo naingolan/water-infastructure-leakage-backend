@@ -86,7 +86,11 @@ router.get('/problems/:userId', async (req, res) => {
       ...problem.toObject(),
       reportedAt: problem.reportedAt instanceof Date ? problem.reportedAt : new Date(problem.reportedAt)
     }));
+<<<<<<< HEAD
     console.log(convertedProblems);
+=======
+
+>>>>>>> 8d12986ab09d67cfa98fb276bfaafe0ea2451481
     res.status(200).json(convertedProblems);
   } catch (error) {
     console.log(error);
