@@ -24,7 +24,7 @@ const problemSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'on progress', 'solved'],
+    enum: ['pending', 'on progress', 'awaiting', 'solved'],
     default: 'pending'
   },
   location:{
@@ -53,7 +53,7 @@ const problemSchema = new mongoose.Schema({
     type: Date
   },
   adminApproval: {
-    enum: ['approved', 'pending', 'rejected'],
+    enum: ['approved', 'pending', 'rejected', 'solved'],
     default: 'pending',
     type: String,
   }

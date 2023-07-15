@@ -194,7 +194,7 @@ router.get('/kinds', (req, res) => {
 //fetch those staffs
 router.get('/staff', async (req, res) => {
   try {
-    const staffList = await User.find({ role: 'staff' }).select('name email phoneNumber department position');
+    const staffList = await User.find({ role: 'staff' }).select('name email phoneNumber department position staffStatus');
     console.log(staffList);
     res.json(staffList);
   } catch (error) {
@@ -231,8 +231,9 @@ router.put('/:id/assign', async (req, res) => {
 
     problem.assignedTo = staffId;
     problem.assignedAt = new Date();
-    problem.status = 'on process';
-
+    problem.status = 'on progress';
+    staff.staffStatus = 'unavailable';
+    
     await problem.save();
     console.log("It has been saved");
 
@@ -263,8 +264,44 @@ router.put('/:id/edit', async (req, res) => {
     }
 
     if (status === 'solved') {
-      problem.status = 'solved';
+      problem.adminApproval = 'approved';
+      //problem.status = 'awaiting';
+      } else if (status === 'not solved') {
+      problem.status = 'on progress';
+    }
 
+    // Update staff feedback if provided
+    if (staffFeedback) {
+      problem.staffFeedback = staffFeedback;
+    }
+
+    // Save the updated problem
+    await problem.save();
+
+    res.status(200).json(problem);
+  } catch (error) {
+    console.error('An error occurred while finalizing the problem:', error);
+    res.status(500).json({ error: 'An error occurred while finalizing the problem' });
+  }
+});
+
+//Admin confirming that the problem has been solved
+router.put('/:id/solved', async (req, res) => {
+  const { id } = req.params;
+  const { status, adminFeedback } = req.body;
+
+  try {
+    const problem = await Problem.findById(id);
+
+    if (!problem) {
+      return res.status(404).json({ error: 'Problem not found' });
+    }
+
+    if (status === 'approve') {
+      problem.status = 'solved';
+      problem.adminApproval = 'solved';
+      const assigned = await User.findById(problem.assignedTo);
+      assigned.staffStatus = 'available';
       // Send problem report email to the reporter
       const reporter = await User.findById(problem.reportedBy);
       const reporterEmail = reporter.email;
@@ -272,12 +309,9 @@ router.put('/:id/edit', async (req, res) => {
       sendProblemReportEmail(reporterEmail, "DAWASA Problem Solved", `Dear ${reporterName}, Your problem has been solved. Visit the area for further feedback`, problem);
     } else if (status === 'not solved') {
       problem.status = 'ongoing';
+      problem.adminApproval = 'rejected';
     }
 
-    // Update staff feedback if provided
-    if (staffFeedback) {
-      problem.staffFeedback = staffFeedback;
-    }
 
     // Save the updated problem
     await problem.save();
