@@ -4,7 +4,7 @@ const problemSchema = new mongoose.Schema({
   kind: {
     type: String,
     enum: ['Small Water Pipe Leak', 'Water Tank Burst', 'Small Pipe Fixture', 'Large Water Leak'],
-    required: true
+    required: false
   },
   description: {
     type: String,
@@ -24,8 +24,11 @@ const problemSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'on process', 'solved'],
+    enum: ['pending', 'on progress', 'solved'],
     default: 'pending'
+  },
+  location:{
+    type: String,
   },
   reportedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -49,6 +52,11 @@ const problemSchema = new mongoose.Schema({
   staffFeedbackAt: {
     type: Date
   },
+  adminApproval: {
+    enum: ['approved', 'pending', 'rejected'],
+    default: 'pending',
+    type: String,
+  }
 });
 
 const Problem = mongoose.model('Problem', problemSchema);

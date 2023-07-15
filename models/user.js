@@ -26,15 +26,14 @@ const userSchema = new Schema({
   },
   department: {
     type: String,
-    required: function () {
-      return this.role === 'staff';
-    }
   },
   position: {
     type: String,
-    required: function () {
-      return this.role === 'staff';
-    }
+  },
+  staffStatus: {
+    enum: ['available', 'unavailable'],
+    default: 'available',
+    type: String,
   }
 });
 

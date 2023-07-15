@@ -89,8 +89,8 @@ async function sendAccountCreationEmail(email, name) {
     });
 
     const subjectContent = 'Account Created - Action Required';
-    const changePasswordLink = 'http://example.com/change-password'; // Replace with your actual password change link
-    const loginLink = 'http://example.com/login'; // Replace with your actual login link
+    const changePasswordLink = 'http://localhost:4200/staffpassword'; 
+    const loginLink = 'http://localhost:4200/login'; 
 
     const htmlContent = `
       <h3>Account Creation Notification</h3>
@@ -202,5 +202,68 @@ router.patch('/update', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'An error occurred while updating user information' });
   }
 });
+
+// Updating user password
+router.patch('/update/password/:userId',  async (req, res) => {
+  try {
+    const { userId, oldPassword, newPassword } = req.body;
+
+    // Find the user by ID
+    console.log(userId);
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify the old password
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    const isNewMatch = await bcrypt.compare(newPassword, user.password);
+
+    if (!isMatch || isNewMatch) {
+      return res.status(400).json({ error: 'Invalid old password' });
+    }
+
+    // Update the user's password
+    user.password = newPassword;
+
+    // Save the updated user
+    const updatedUser = await user.save();
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while updating the password' });
+  }
+});
+
+router.patch('/update/staff/password', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log(password);
+    // Find the staff by email
+    const staff = await User.findOne({ email });
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff not found' });
+    }
+
+    // Generate a new salt
+    const salt = await bcrypt.genSalt(10);
+
+    // Update the staff's password
+    staff.password = await bcrypt.hash(password, salt);
+
+    // Save the updated staff
+    const updatedStaff = await staff.save();
+
+    res.status(200).json(updatedStaff);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while updating the password' });
+  }
+});
+
+
 
 module.exports = router;
