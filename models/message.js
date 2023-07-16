@@ -22,12 +22,13 @@ const messageSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  reply: {
-    type: mongoose.Schema.Types.ObjectId,
+  reply: [{
+    //type: mongoose.Schema.Types.ObjectId,
      content: {
       type: String
       },
       replier: {
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
       },
       createdAt: {
@@ -35,6 +36,7 @@ const messageSchema = new mongoose.Schema({
         default: Date.now
       }
   }
+]
 });
 
 const Message = mongoose.model('Message', messageSchema);

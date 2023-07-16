@@ -93,6 +93,7 @@ async function sendAccountCreationEmail(email, name) {
     const loginLink = 'http://localhost:4200/login'; 
 
     const htmlContent = `
+      <h2 style="background-color:blue; color:white">WATER INFASTRUCTURES LEAKAGE REPORTING SYSTEM</h2>
       <h3>Account Creation Notification</h3>
       <p>Dear ${name},</p>
       <p>Your account has been successfully created. Please follow the steps below to activate your account:</p>
@@ -266,6 +267,28 @@ router.patch('/update/staff/password', async (req, res) => {
   }
 });
 
+//route to get all users
+router.get('/', async (req, res) => {
+  try {
+    const users = await User.find();
+    res.status(200).json({ users });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while fetching users' });
+  }
+});
+
+//route to delete a users
+router.delete('/:id', async (req, res) =>{
+  try {
+    const { userId } = req.body;
+    const user = await User.findByIdAndDelete(userId);
+    res.status(200).json({ user });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: 'An error occurred while deleting user' });
+  }
+});
 
 
 module.exports = router;

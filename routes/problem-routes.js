@@ -42,8 +42,7 @@ router.post('/report', authMiddleware("user"), async (req, res) => {
     await newMessage.save();
 
     // Send email to the reporter
-    sendProblemReportEmail(reporter.email, `Dear ${reporter.name}, Thank you for reporting a problem. Our assigned staff will help you.`);
-
+    sendProblemReportEmail(reporter.email, "PROBLEM REPORT", reporter.name);
     res.status(201).json(savedProblem);
   } catch (error) {
     console.log(error);
@@ -241,8 +240,13 @@ router.put('/:id/assign', async (req, res) => {
     const reporter = await User.findById(problem.reportedBy);
     const reporterEmail = reporter.email;
     const reporterName = reporter.name;
-    sendProblemReportEmail(reporterEmail,"DAWASA Problem Assignment", `Dear ${reporterName}, Your problem has been assigned to a staff member.`, problem);
+    
+    problem.location =  problem.location;
+    const reportedAt = problem.reportedAt.toISOString().split('T')[0];
 
+    sendProblemAssignmentEmail(reporterEmail, "Problem Assignment", problem.location, reportedAt);
+    sendStaffProblemAssignmentEmail(staff.email, "Problem Assignment", staff.name, reportedAt,problem.location);
+    //sendProblemReportEmail(reporterEmail,"DAWASA Problem Assignment", `Dear ${reporterName}, Your problem has been assigned to a staff member.`, problem);
     res.status(200).json({ message: 'Staff assigned successfully', problem });
 
   } catch (error) {
@@ -307,12 +311,13 @@ router.put('/:id/solved', async (req, res) => {
       const reporter = await User.findById(problem.reportedBy);
       const reporterEmail = reporter.email;
       const reporterName = reporter.name;
-      sendProblemReportEmail(reporterEmail, "DAWASA Problem Solved", `Dear ${reporterName}, Your problem has been solved. Visit the area for further feedback`, problem);
+      const problemTime = problem.createdAt.toISOString().split('T')[0];
+      sendUserProblemSolvedEmail(reporterEmail, "Problem Solution", reporterName, problemTime, problem.location);
+     // sendProblemReportEmail(reporterEmail, "DAWASA Problem Solved", `Dear ${reporterName}, Your problem has been solved. Visit the area for further feedback`, problem);
     } else if (status === 'not solved') {
       problem.status = 'ongoing';
       problem.adminApproval = 'rejected';
     }
-
 
     // Save the updated problem
     await problem.save();
@@ -326,7 +331,9 @@ router.put('/:id/solved', async (req, res) => {
 
 
 const mongoose = require('mongoose');
-    // Get problems assigned to specific staff
+
+
+// Get problems assigned to specific staff
 router.get('/assigned/:staffId',async (req, res) => {
   const { staffId } = req.params;
 
@@ -348,20 +355,10 @@ router.get('/assigned/:staffId',async (req, res) => {
 });
 
 
-//This is an email which will be used to send information to the email
-// Function to send registration confirmation email
-const handlebars = require('handlebars');
-
-const fs = require('fs');
-
-async function sendProblemReportEmail(email, subjectContent, templateData) {
+// Function to send problem report  confirmation email
+async function sendProblemReportEmail(email, subjectContent, name) {
   try {
-    const htmlTemplatePath = './templates/problem_report_template.html';
-    const htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf-8');
-    const compiledTemplate = handlebars.compile(htmlTemplate);
-    const renderedTemplate = compiledTemplate(templateData);
-
-    let transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
@@ -371,11 +368,20 @@ async function sendProblemReportEmail(email, subjectContent, templateData) {
       },
     });
 
+    const htmlContent = `
+      <h2 style="background-color:#3498db; color:white; padding:20px;" >WATER INFASTRUCTURES LEAKAGE REPORTING SYSTEM</h2>
+      <h3>Problem Report</h3>
+      <p>Dear ${name},</p>
+      <p>We have received your problem report. Thank you for bringing this to our attention.</p>
+      <p>If you have any further questions or need assistance, please feel free to contact us.</p>
+      <p>Thank you.</p>
+    `;
+
     let mailOptions = {
       from: 'kinegaofficial@gmail.com',
       to: email,
       subject: subjectContent,
-      html: renderedTemplate,
+      html: htmlContent,
     };
 
     let info = await transporter.sendMail(mailOptions);
@@ -385,5 +391,126 @@ async function sendProblemReportEmail(email, subjectContent, templateData) {
     console.error('Error sending email:', error);
   }
 }
+
+// Function to to inform user that the problem has been assigned to stqaff
+async function sendProblemAssignmentEmail(email, subjectContent, name, problemTime, problemLocation) {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'kinegaofficial@gmail.com',
+        pass: 'buzpitfowyqigedj',
+      },
+    });
+
+    const htmlContent = `
+      <h2 style="background-color:#3498db; color:white; padding:20px;">WATER INFASTRUCTURES LEAKAGE REPORTING SYSTEM</h2>
+      <h3>PROBLEM ASSIGNMENT</h3>
+      <p>Dear ${name},</p>
+      <p>We would like to inform you that a problem has been assigned to you. Please take the necessary actions to resolve it.</p>
+      <p>If you have any questions or need any assistance, please feel free to contact us.</p>
+      <p>Thank you.</p>
+    `;
+
+    let mailOptions = {
+      from: 'kinegaofficial@gmail.com',
+      to: email,
+      subject: subjectContent,
+      html: htmlContent,
+    };
+
+    let info = await transporter.sendMail(mailOptions);
+
+    console.log('Email sent: ' + info.response);
+  } catch (error) {
+    console.error('Error sending email:', error);
+  }
+}
+
+// Function to send problem inform email to staff
+async function sendStaffProblemAssignmentEmail(email, subjectContent, name, problemTime, problemLocation) {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'kinegaofficial@gmail.com',
+        pass: 'buzpitfowyqigedj',
+      },
+    });
+
+    const htmlContent = `
+      <h2 style="background-color:#3498db; color:white; padding:20px;">WATER INFASTRUCTURES LEAKAGE REPORTING SYSTEM</h2>
+      <h3>PROBLEM ASSIGNMENT</h3>
+      <p>Dear ${name},</p>
+      <p>We would like to inform you that a problem has been assigned to you. Please take the necessary actions to resolve it.</p>
+      <p>Problem Details:</p>
+      <ul>
+        <li>Time: ${problemTime}</li>
+        <li>Location: ${problemLocation}</li>
+      </ul>
+      <p>If you have any questions or need any assistance, please feel free to contact us.</p>
+      <p>Thank you.</p>
+    `;
+
+    let mailOptions = {
+      from: 'kinegaofficial@gmail.com',
+      to: email,
+      subject: subjectContent,
+      html: htmlContent,
+    };
+
+    let info = await transporter.sendMail(mailOptions);
+
+    console.log('Email sent: ' + info.response);
+  } catch (error) {
+    console.error('Error sending email:', error);
+  }
+}
+
+// Function to send problem inform that the problem has been solved
+async function sendUserSolvedProblemEmail(reporterEmail, subjectContent, name, problemTime, problemLocation) {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'kinegaofficial@gmail.com',
+        pass: 'buzpitfowyqigedj',
+      },
+    });
+
+    const htmlContent = `
+      <h2 style="background-color:#3498db; color:white; padding:20px;">WATER INFASTRUCTURES LEAKAGE REPORTING SYSTEM</h2>
+      <h3>PROBLEM SOLVED</h3>
+      <p>Dear ${name},</p>
+      <p>We would like to inform you that the problem you reported has been solved.</p>
+      <ul>
+        <li>ID: ${problemTime}</li>
+        <li>Location: ${problemLocation}</li>
+        <l
+      </ul>
+      <p>Thank you for using our system. If you have any further questions or need any assistance, please feel free to contact us.</p>
+    `;
+
+    let mailOptions = {
+      from: 'kinegaofficial@gmail.com',
+      to: reporterEmail,
+      subject: subjectContent,
+      html: htmlContent,
+    };
+
+    let info = await transporter.sendMail(mailOptions);
+
+    console.log('Email sent: ' + info.response);
+  } catch (error) {
+    console.error('Error sending email:', error);
+  }
+}
+
 
 module.exports = router;

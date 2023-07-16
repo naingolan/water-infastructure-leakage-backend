@@ -32,22 +32,34 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update a reply
+//adding a relpy to a message
 router.put('/replies/:messageId', async (req, res) => {
-  //const { content } = req.body;
-  console.log(req.body);
+  const { userId , messageId, message } = req.body;
   try {
-    const reply = await Message.findById(req.params.messageId);
-    reply.reply.content = req.params.message;
-    reply.reply.replier = req.params.userId;
-    await reply.save();
-    res.status(200).json(reply);
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    console.log(message)
+    const newReply = {
+      content: message,
+      replier: userId,
+      createdAt: Date.now()
+    };
+    
+    message.reply.push(newReply);
+    
+    await message.save();
+    res.status(200).json(message);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'An error occurred while updating the reply' });
+    res.status(500).json({ error: 'An error occurred while adding the reply' });
   }
 });
+
 module.exports = router;
+
 
 // Get messages by receiver ID
 router.get('/:receiverId', async (req, res) => {
